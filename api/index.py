@@ -1,8 +1,7 @@
 from flask import Flask, request, jsonify
-import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
 import pickle
 import os
+import numpy as np
 
 app = Flask(__name__)
 
@@ -23,7 +22,6 @@ def load_model_and_encoders():
 
 rf_model, encoders = load_model_and_encoders()
 
-# Add the data from CSV directly here
 TEAMS = [
     "Mumbai Indians", "Chennai Super Kings", "Royal Challengers Bangalore",
     "Kolkata Knight Riders", "Delhi Capitals", "Punjab Kings",
@@ -37,7 +35,6 @@ VENUES = [
     "Visakhapatnam", "Indore", "Raipur", "Ranchi", "Cuttack", "Kanpur", "Rajkot"
 ]
 
-# Add average impact scores for each team (calculate these from your CSV)
 TEAM_IMPACT_SCORES = {
     "Mumbai Indians": {"batting": 10861.937, "bowling": 11012.365},
     "Chennai Super Kings": {"batting": 10500.123, "bowling": 10800.456},
@@ -60,19 +57,19 @@ def predict_outcome(batting_team, bowling_team, venue, target, current_score, wi
     batting_impact = TEAM_IMPACT_SCORES[batting_team]["batting"]
     bowling_impact = TEAM_IMPACT_SCORES[bowling_team]["bowling"]
 
-    input_data = pd.DataFrame({
-        'batting_team': [encoders['batting_team'].transform([batting_team])[0]],
-        'bowling_team': [encoders['bowling_team'].transform([bowling_team])[0]],
-        'city': [encoders['city'].transform([venue])[0]],
-        'runs_left': [runs_left],
-        'balls_left': [balls_left],
-        'wickets_remaining': [wickets_left],
-        'total_run_x': [target],
-        'crr': [crr],
-        'rrr': [rrr],
-        'Batting_Team_Impact_Score': [batting_impact],
-        'Bowling_Team_Impact_Score': [bowling_impact]
-    })
+    input_data = np.array([[
+        encoders['batting_team'].transform([batting_team])[0],
+        encoders['bowling_team'].transform([bowling_team])[0],
+        encoders['city'].transform([venue])[0],
+        runs_left,
+        balls_left,
+        wickets_left,
+        target,
+        crr,
+        rrr,
+        batting_impact,
+        bowling_impact
+    ]])
 
     probability = rf_model.predict_proba(input_data)[0]
     return probability[1], probability[0]
@@ -122,7 +119,4 @@ def test():
 def home():
     return jsonify({"message": "Welcome to the Cricket Prediction API!"})
 
-# Remove the if __name__ == '__main__': block
-
-# Add this line at the end of the file
 app = app
