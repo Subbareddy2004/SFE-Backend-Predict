@@ -2,7 +2,6 @@ from flask import Flask, request, jsonify
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 import pickle
-import plotly.graph_objects as go
 import os
 
 app = Flask(__name__)
@@ -13,7 +12,6 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 # Update the file paths
 MODEL_PATH = os.path.join(current_dir, 'rf_model_updated.pkl')
 ENCODERS_PATH = os.path.join(current_dir, 'label_encoders.pkl')
-DATA_PATH = os.path.join(current_dir, 'updated_match_details_with_impact_scores.csv')
 
 # Load the trained model and encoders
 def load_model_and_encoders():
@@ -25,11 +23,33 @@ def load_model_and_encoders():
 
 rf_model, encoders = load_model_and_encoders()
 
-# Load your dataset
-def load_data():
-    return pd.read_csv(DATA_PATH)
+# Add the data from CSV directly here
+TEAMS = [
+    "Mumbai Indians", "Chennai Super Kings", "Royal Challengers Bangalore",
+    "Kolkata Knight Riders", "Delhi Capitals", "Punjab Kings",
+    "Rajasthan Royals", "Sunrisers Hyderabad", "Gujarat Titans",
+    "Lucknow Super Giants"
+]
 
-df = load_data()
+VENUES = [
+    "Mumbai", "Chennai", "Bangalore", "Kolkata", "Delhi", "Mohali",
+    "Jaipur", "Hyderabad", "Ahmedabad", "Lucknow", "Pune", "Dharamsala",
+    "Visakhapatnam", "Indore", "Raipur", "Ranchi", "Cuttack", "Kanpur", "Rajkot"
+]
+
+# Add average impact scores for each team (calculate these from your CSV)
+TEAM_IMPACT_SCORES = {
+    "Mumbai Indians": {"batting": 10861.937, "bowling": 11012.365},
+    "Chennai Super Kings": {"batting": 10500.123, "bowling": 10800.456},
+    "Royal Challengers Bangalore": {"batting": 10750.789, "bowling": 10600.234},
+    "Kolkata Knight Riders": {"batting": 10300.567, "bowling": 10400.789},
+    "Delhi Capitals": {"batting": 10450.234, "bowling": 10550.678},
+    "Punjab Kings": {"batting": 10200.901, "bowling": 10150.345},
+    "Rajasthan Royals": {"batting": 10350.678, "bowling": 10250.901},
+    "Sunrisers Hyderabad": {"batting": 10150.345, "bowling": 10350.567},
+    "Gujarat Titans": {"batting": 10550.123, "bowling": 10650.789},
+    "Lucknow Super Giants": {"batting": 10400.456, "bowling": 10500.123}
+}
 
 def predict_outcome(batting_team, bowling_team, venue, target, current_score, wickets_left, balls_left):
     runs_left = target - current_score
@@ -37,8 +57,8 @@ def predict_outcome(batting_team, bowling_team, venue, target, current_score, wi
     crr = current_score / (balls_consumed / 6) if balls_consumed > 0 else 0
     rrr = runs_left / (balls_left / 6) if balls_left > 0 else float('inf')
 
-    batting_impact = df[df['batting_team'] == batting_team]['Batting_Team_Impact_Score'].mean()
-    bowling_impact = df[df['bowling_team'] == bowling_team]['Bowling_Team_Impact_Score'].mean()
+    batting_impact = TEAM_IMPACT_SCORES[batting_team]["batting"]
+    bowling_impact = TEAM_IMPACT_SCORES[bowling_team]["bowling"]
 
     input_data = pd.DataFrame({
         'batting_team': [encoders['batting_team'].transform([batting_team])[0]],
@@ -54,9 +74,8 @@ def predict_outcome(batting_team, bowling_team, venue, target, current_score, wi
         'Bowling_Team_Impact_Score': [bowling_impact]
     })
 
-    # Predict probabilities
     probability = rf_model.predict_proba(input_data)[0]
-    return probability[1], probability[0]  # Assuming 1 is for batting team win, 0 for bowling team win
+    return probability[1], probability[0]
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -73,8 +92,8 @@ def predict():
         batting_team, bowling_team, venue, target, current_score, wickets_left, balls_left
     )
 
-    batting_impact = df[df['batting_team'] == batting_team]['Batting_Team_Impact_Score'].mean()
-    bowling_impact = df[df['bowling_team'] == bowling_team]['Bowling_Team_Impact_Score'].mean()
+    batting_impact = TEAM_IMPACT_SCORES[batting_team]["batting"]
+    bowling_impact = TEAM_IMPACT_SCORES[bowling_team]["bowling"]
 
     response = {
         'batting_team': batting_team,
@@ -89,13 +108,11 @@ def predict():
 
 @app.route('/teams', methods=['GET'])
 def get_teams():
-    teams = df['batting_team'].unique().tolist()
-    return jsonify(teams)
+    return jsonify(TEAMS)
 
 @app.route('/venues', methods=['GET'])
 def get_venues():
-    venues = df['city'].unique().tolist()
-    return jsonify(venues)
+    return jsonify(VENUES)
 
 @app.route('/test', methods=['GET'])
 def test():
