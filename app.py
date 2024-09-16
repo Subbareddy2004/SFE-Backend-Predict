@@ -52,6 +52,12 @@ TEAM_IMPACT_SCORES = {
 }
 
 def predict_outcome(batting_team, bowling_team, venue, target, current_score, wickets_left, balls_left):
+    # Convert string inputs to appropriate numeric types
+    target = int(target)
+    current_score = int(current_score)
+    wickets_left = int(wickets_left)
+    balls_left = int(balls_left)
+
     runs_left = target - current_score
     balls_consumed = 120 - balls_left
     crr = current_score / (balls_consumed / 6) if balls_consumed > 0 else 0
@@ -79,32 +85,37 @@ def predict_outcome(batting_team, bowling_team, venue, target, current_score, wi
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    data = request.json
-    batting_team = data['batting_team']
-    bowling_team = data['bowling_team']
-    venue = data['venue']
-    target = data['target']
-    current_score = data['current_score']
-    wickets_left = data['wickets_left']
-    balls_left = data['balls_left']
+    try:
+        data = request.json
+        batting_team = data['batting_team']
+        bowling_team = data['bowling_team']
+        venue = data['venue']
+        target = int(data['target'])
+        current_score = int(data['current_score'])
+        wickets_left = int(data['wickets_left'])
+        balls_left = int(data['balls_left'])
 
-    batting_prob, bowling_prob = predict_outcome(
-        batting_team, bowling_team, venue, target, current_score, wickets_left, balls_left
-    )
+        batting_prob, bowling_prob = predict_outcome(
+            batting_team, bowling_team, venue, target, current_score, wickets_left, balls_left
+        )
 
-    batting_impact = TEAM_IMPACT_SCORES[batting_team]["batting"]
-    bowling_impact = TEAM_IMPACT_SCORES[bowling_team]["bowling"]
+        batting_impact = TEAM_IMPACT_SCORES[batting_team]["batting"]
+        bowling_impact = TEAM_IMPACT_SCORES[bowling_team]["bowling"]
 
-    response = {
-        'batting_team': batting_team,
-        'bowling_team': bowling_team,
-        'batting_prob': float(batting_prob),
-        'bowling_prob': float(bowling_prob),
-        'batting_impact': float(batting_impact),
-        'bowling_impact': float(bowling_impact)
-    }
+        response = {
+            'batting_team': batting_team,
+            'bowling_team': bowling_team,
+            'batting_prob': float(batting_prob),
+            'bowling_prob': float(bowling_prob),
+            'batting_impact': float(batting_impact),
+            'bowling_impact': float(bowling_impact)
+        }
 
-    return jsonify(response)
+        return jsonify(response)
+    except ValueError as e:
+        return jsonify({'error': f'Invalid input: {str(e)}'}), 400
+    except Exception as e:
+        return jsonify({'error': f'An error occurred: {str(e)}'}), 500
 
 @app.route('/teams', methods=['GET'])
 def get_teams():
